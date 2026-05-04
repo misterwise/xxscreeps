@@ -1,5 +1,12 @@
 # xxscreeps
 
+## 0.0.9
+
+### Patch Changes
+
+- 4981251: Implement Game.notify queueing layer
+- 3f011d0: Allow construction sites on tiles occupied by a ruin.
+
 ## 0.0.8
 
 ### Patch Changes
