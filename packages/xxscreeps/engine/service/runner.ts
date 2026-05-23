@@ -19,7 +19,8 @@ const log = config.runner.log ?? isEntry
 	? (message: string) => process.stderr.write(message)
 	: () => {};
 
-// Interrupt handler
+// Interrupt handler. Don't dispose sandboxes synchronously — disposing mid-tick races
+// `tick.apply()` and in-flight host promises. Break iterators; let `using playerInstances` clean up.
 let break1: Effect | undefined;
 let break2: Effect | undefined;
 let break3: Effect | undefined;
@@ -27,10 +28,6 @@ using _signal = handleInterruptSignal(() => {
 	break1?.();
 	break2?.();
 	break3?.();
-	for (const instance of playerInstances.values()) {
-		instance.disconnect();
-	}
-	playerInstances.clear();
 });
 
 // Connect to main & storage

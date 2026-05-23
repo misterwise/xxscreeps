@@ -106,12 +106,28 @@ export class IsolatedSandbox implements Sandbox {
 				return completion;
 			}
 		} catch (err: any) {
-			if (err.message === 'Script execution timed out.') {
-				return { result: 'timedOut', stack: err.stack };
-			} else if (err.message === 'Isolate is disposed') {
-				return { result: 'disposed' };
-			}
+			const completion = classifyIvmRunError(err);
+			if (completion) return completion;
 			throw err;
 		}
 	}
+}
+
+const disposedMessages = new Set([
+	'Isolate is disposed',
+	'Isolate is already disposed',
+	'Isolate was disposed during execution',
+	'Isolate was disposed during execution due to memory limit',
+]);
+
+export function classifyIvmRunError(err: unknown): TickCompletion | null {
+	const message = (err as { message?: unknown } | null | undefined)?.message;
+	if (typeof message !== 'string') return null;
+	if (message === 'Script execution timed out.') {
+		const stack = (err as { stack?: unknown }).stack;
+		return typeof stack === 'string' ? { result: 'timedOut', stack } : { result: 'timedOut' };
+	} else if (disposedMessages.has(message)) {
+		return { result: 'disposed' };
+	}
+	return null;
 }
