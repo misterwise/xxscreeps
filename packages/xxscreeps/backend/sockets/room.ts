@@ -9,7 +9,7 @@ import * as User from 'xxscreeps/engine/db/user/index.js';
 import { getRoomChannel } from 'xxscreeps/engine/processor/model.js';
 import { Fn } from 'xxscreeps/functional/fn.js';
 import { runOneShot } from 'xxscreeps/game/index.js';
-import { acquireWith, makeEventPublisher, mustNotReject } from 'xxscreeps/utility/async.js';
+import { Deferred, acquireWith, makeEventPublisher, mustNotReject } from 'xxscreeps/utility/async.js';
 import { acquireHookEffects } from 'xxscreeps/utility/hook.js';
 import { asUnion, disposableToEffect, getOrSet, throttle } from 'xxscreeps/utility/utility.js';
 import './render.js';
@@ -127,6 +127,7 @@ export const roomSubscription: SubscriptionEndpoint = {
 		let previous: any;
 		let previousTime = -1;
 		let skipUntil = 0;
+		let renderChain = Promise.resolve();
 		const { shard } = this.context;
 		const seenUsers = new Set<string>();
 		const roomName = parameters.room!;
@@ -145,6 +146,15 @@ export const roomSubscription: SubscriptionEndpoint = {
 				if (Date.now() < skipUntil) {
 					return;
 				}
+
+				// Serialize renders. The publisher emits ticks in order, but this body is async;
+				// overlapping invocations would write `previous` / `previousTime` out of order and
+				// corrupt the per-object diffs (an action log clears then re-sends on adjacent ticks).
+				// A render throw is fatal (mustNotReject exits), so the chain needn't unwind on error.
+				const previousRender = renderChain;
+				const renderDone = new Deferred();
+				renderChain = renderDone.promise;
+				await previousRender;
 
 				// Render current room state
 				room['#initialize']();
@@ -206,6 +216,7 @@ export const roomSubscription: SubscriptionEndpoint = {
 				);
 				this.send(JSON.stringify(response));
 				previousTime = time;
+				renderDone.resolve();
 			})),
 
 			getRoomChannel(shard, roomName).listen(event => {
