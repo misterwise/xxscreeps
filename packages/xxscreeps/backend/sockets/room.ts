@@ -126,6 +126,10 @@ export const roomSubscription: SubscriptionEndpoint = {
 	async subscribe(parameters) {
 		let previous: any;
 		let previousTime = -1;
+		// Set when the last render emitted a transient action log. Forces the next render even on a
+		// no-update tick so the log clears at T+1: the client re-fires the animation every game tick the
+		// entry is present, so a 2-tick window double-renders one-shot actions (e.g. lab reaction beams).
+		let hadActionLog = false;
 		let skipUntil = 0;
 		let renderChain = Promise.resolve();
 		const { shard } = this.context;
@@ -159,15 +163,21 @@ export const roomSubscription: SubscriptionEndpoint = {
 				// Render current room state
 				room['#initialize']();
 				const visibleUsers = new Set<string>();
-				const dval = didUpdate ? runOneShot(this.context.world, room, time, this.user ?? '0', () => {
+				const dval = didUpdate || hadActionLog ? runOneShot(this.context.world, room, time, this.user ?? '0', () => {
 					// Render all RoomObjects
 					const objects: Record<string, unknown> = {};
+					let actionLogSeen = false;
 					for (const object of room['#objects']) {
 						asUnion(object);
 						const value = object[Render](previousTime === -1 ? undefined : previousTime);
 						if (value) {
 							if (value._id) {
 								objects[value._id] = value;
+							}
+							// A non-empty action log this tick must be cleared next tick (see `hadActionLog`).
+							const { actionLog } = value as { actionLog?: object };
+							if (actionLog && Object.keys(actionLog).length !== 0) {
+								actionLogSeen = true;
 							}
 						}
 					}
@@ -182,6 +192,7 @@ export const roomSubscription: SubscriptionEndpoint = {
 					// Diff with previous payload
 					const dval = diff(previous, objects);
 					previous = objects;
+					hadActionLog = actionLogSeen;
 					return dval;
 				}) : {};
 
