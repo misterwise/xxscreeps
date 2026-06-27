@@ -34,6 +34,21 @@ export function isHighwayRoom(roomName: string): boolean {
 	return isHighwayAxis(rx) || isHighwayAxis(ry);
 }
 
+export type HighwayOrientation = 'vertical' | 'horizontal' | 'crossing';
+
+// Which sector-facing borders a highway room walls off. A vertical lane (its column is on the
+// sector ring) is bounded by sector interiors east and west, so its wall mass sits on the left+right
+// borders; a horizontal lane on top+bottom; a crossing, where both axes ring a sector, only in the
+// four diagonal-sector corners. Defined for highway rooms; a non-highway room defaults to 'vertical'.
+export function highwayOrientation(roomName: string): HighwayOrientation {
+	const { rx, ry } = parseSignedRoomName(roomName);
+	const vertical = isHighwayAxis(rx);
+	const horizontal = isHighwayAxis(ry);
+	return vertical && horizontal ? 'crossing' : horizontal ? 'horizontal' : 'vertical';
+}
+
+export type RoomType = 'highway' | 'sourceKeeper' | 'center' | 'normal';
+
 // 11-room ring around a sector center: 4 corners + 9 rooms per side = 40 rooms total. Emission
 // order is load-bearing (deposit placement consumes it), so corners precede the interleaved sides.
 export function sectorEdgeRooms(centralRoom: string): Iterable<string> {
