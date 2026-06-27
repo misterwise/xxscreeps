@@ -1,8 +1,9 @@
+import type { RoomType } from './room/sector.js';
 import * as assert from 'node:assert';
 import { search } from 'xxscreeps/driver/pathfinder/pathfinder.js';
 import { describe, test } from 'xxscreeps/test/index.js';
 import { RoomPosition } from './position.js';
-import { isHighwayRoom, sectorsForRoom } from './room/sector.js';
+import { isCentralRoom, isHighwayRoom, roomType, sectorsForRoom } from './room/sector.js';
 
 interface PositionAssertion {
 	xx: number;
@@ -68,6 +69,33 @@ describe('isHighwayRoom', () => {
 					assert.strictEqual(
 						isHighwayRoom(roomName), [ ...sectorsForRoom(roomName) ].length > 0,
 						`${roomName}: isHighwayRoom must match sectorsForRoom membership`);
+				}
+			}
+		}
+	});
+});
+
+describe('roomType', () => {
+	test('classifies the vanilla mod-10 sector template', () => {
+		const cases: [ string, RoomType ][] = [
+			[ 'W0N0', 'highway' ], [ 'W5N0', 'highway' ], [ 'W10N5', 'highway' ], [ 'E0S7', 'highway' ],
+			[ 'W5N5', 'center' ], [ 'E5S5', 'center' ],
+			[ 'W4N4', 'sourceKeeper' ], [ 'W6N6', 'sourceKeeper' ], [ 'W4N6', 'sourceKeeper' ],
+			[ 'W5N4', 'sourceKeeper' ], [ 'E6S5', 'sourceKeeper' ],
+			[ 'W2N2', 'normal' ], [ 'W1N7', 'normal' ], [ 'E3S8', 'normal' ],
+		];
+		for (const [ roomName, expected ] of cases) {
+			assert.strictEqual(roomType(roomName), expected, `${roomName} should be ${expected}`);
+		}
+	});
+
+	test('agrees with isHighwayRoom and isCentralRoom across a swept range', () => {
+		for (let coord = 0; coord <= 20; ++coord) {
+			for (let other = 0; other <= 20; ++other) {
+				for (const roomName of [ `W${coord}N${other}`, `E${coord}S${other}`, `W${coord}S${other}`, `E${coord}N${other}` ]) {
+					const type = roomType(roomName);
+					assert.strictEqual(type === 'highway', isHighwayRoom(roomName), `${roomName}: highway mismatch`);
+					assert.strictEqual(type === 'center', isCentralRoom(roomName), `${roomName}: center mismatch`);
 				}
 			}
 		}

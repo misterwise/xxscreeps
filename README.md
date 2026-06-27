@@ -160,19 +160,21 @@ and gives full TypeScript types on the operations you call.
 
 ```ts
 import { Database, Shard } from 'xxscreeps/engine/db/index.js';
-import { generateRoom } from 'xxscreeps/engine/room-gen.js';
+import { generateRoom, generateSector } from 'xxscreeps/engine/room-gen.js';
 
 await using db = await Database.connect();
 await using shard = await Shard.connect(db, 'shard0');
 
-await generateRoom(shard, 'W12N5', { sources: 1, mineral: 'H' });          // normal room
-await generateRoom(shard, 'W11N1', { sources: 3, controller: false, keeperLairs: true });
+await generateRoom(shard, 'W12N5', { sources: 1, mineral: 'H' });
+await generateSector(shard, 'W0N0');             // 121 rooms (11×11, incl. shared rings)
 await Promise.all([ db.save(), shard.save() ]);
 ```
 
-`generateRoom` adds a procedurally generated room of any type to the shard's
-terrain blob and `rooms` set. Like `npx xxscreeps import`, it is an offline
-operation — stop the server before running it so cached world state in the
+`generateRoom` and `generateSector` (a vanilla sector — the 11×11 = 121-room block
+from an origin aligned to a multiple of 10, including the highway rings shared with
+adjacent sectors) add procedurally generated rooms to the shard's terrain blob
+and `rooms` set. Like `npx xxscreeps import`, these are offline operations
+— stop the server before running them so cached world state in the
 backend, processor, and runner workers doesn't go stale. Existing rooms
 in the target footprint are re-used; matching exits ensure adjacent
 generated rooms connect.

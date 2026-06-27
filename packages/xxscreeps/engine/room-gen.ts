@@ -6,9 +6,9 @@ import * as MapSchema from 'xxscreeps/game/map.js';
 import * as RoomObject from 'xxscreeps/game/object.js';
 import { RoomPosition } from 'xxscreeps/game/position.js';
 import { Room } from 'xxscreeps/game/room/index.js';
-import { makeRoomName, parseRoomName } from 'xxscreeps/game/room/name.js';
+import { kMaxWorldSize, makeRoomName, parseRoomName } from 'xxscreeps/game/room/name.js';
 import { flushUsers } from 'xxscreeps/game/room/room.js';
-import { highwayOrientation } from 'xxscreeps/game/room/sector.js';
+import { highwayOrientation, roomType } from 'xxscreeps/game/room/sector.js';
 import { Terrain, TerrainWriter, packExits } from 'xxscreeps/game/terrain.js';
 import { StructureController } from 'xxscreeps/mods/controller/controller.js';
 import { create as createExtractor } from 'xxscreeps/mods/mineral/extractor.js';
@@ -885,6 +885,23 @@ function placeObjects(
 	room['#flushObjects'](null);
 }
 
+// A highway's wall mass sits on its sector-facing borders — left+right for a vertical lane, top+bottom
+// for a horizontal one; a crossing has none (it carries travel through both axes). These mass sides are
+// the only highway borders that may seal; the lane-axis borders must stay open so the lane runs through.
+function isHighwayMassSide(orientation: HighwayOrientation, dir: ExitSide): boolean {
+	return orientation === 'vertical' ? dir === 'left' || dir === 'right' :
+		orientation === 'horizontal' ? dir === 'top' || dir === 'bottom' :
+		false;
+}
+
+// The live world walls off some borders where both sides carry a wall mass: a normal room seals ~1.1 of
+// its 4 sides on average, and a highway seals its mass sides at much the same rate (real normal<->normal
+// 29%, normal<->highway 31%). Source-keeper and center rooms — and a highway's lane-axis sides — stay
+// open, since sealing the core would strand the sector's guarded rooms and sealing a lane would break
+// the through-route. So a void border between two mass-walled, non-core sides seals with this
+// probability; the neighbour inherits the seal when it builds.
+const kSealSideProbability = 0.3;
+
 // Builds a room's terrain and objects entirely in memory; performs no storage I/O. `lookupTerrain`
 // resolves an already-built neighbor's terrain so shared exits line up.
 function buildRoom(
@@ -902,6 +919,10 @@ function buildRoom(
 	};
 
 	const exits: ExitMap = { top: [], right: [], bottom: [], left: [] };
+	const hasController = options?.controller ?? true;
+	// Read only on the corridor (highway) path; 'vertical' for non-highway names, but then never used.
+	const orientation = highwayOrientation(roomName);
+	const sealedDirs: ExitSide[] = [];
 
 	for (const dir of [ 'top', 'right', 'bottom', 'left' ] as const) {
 		const info = dirs[dir];
@@ -921,22 +942,42 @@ function buildRoom(
 		} else if (neighborTerrain) {
 			exits[dir] = exitsArray(neighborTerrain.terrain, info.axis, info.fixed);
 		} else {
-			exits[dir] = genExit();
+			// A void border (no built neighbor to inherit from): seal it framed-solid for the neighbor to
+			// inherit, or open it with genExit. A highway seals only its mass sides; an ordinary room seals
+			// a side facing another normal or a highway but never a core neighbor (see kSealSideProbability).
+			let sealable: boolean;
+			if (options?.corridor) {
+				sealable = isHighwayMassSide(orientation, dir);
+			} else {
+				const neighborType = roomType(info.neighborName);
+				sealable = hasController && neighborType !== 'sourceKeeper' && neighborType !== 'center';
+			}
+			if (sealable && Math.random() < kSealSideProbability) {
+				sealedDirs.push(dir);
+			} else {
+				exits[dir] = genExit();
+			}
 		}
+	}
+
+	// Never wall off all four sides — a fully sealed room is unreachable, and the live world has none.
+	// Re-open one side this room sealed (a void side, so reopening can't contradict a flushed neighbor).
+	if (sealedDirs.length > 0 &&
+		exits.top.length === 0 && exits.right.length === 0 && exits.bottom.length === 0 && exits.left.length === 0) {
+		exits[sealedDirs[0]!] = genExit();
 	}
 
 	const wallType = options?.terrainType ?? Math.floor(Math.random() * 27) + 1;
 	const swampType = options?.swampType ??
 		(options?.corridor ? rollHighwaySwamp() : Math.floor(Math.random() * 14));
 	const sourceCount = options?.sources ?? (Math.random() > 0.5 ? 1 : 2);
-	const hasController = options?.controller ?? true;
 	const hasKeepers = options?.keeperLairs ?? false;
 	const hasExtractor = options?.extractor ?? false;
 	const mineralType: ResourceType | false = options?.mineral ??
 		mineralPool[Math.floor(Math.random() * mineralPool.length)]!;
 
 	const grid = options?.corridor
-		? genHighwayTerrain(exits, rx, ry, highwayOrientation(roomName), swampType)
+		? genHighwayTerrain(exits, rx, ry, orientation, swampType)
 		: genTerrain(wallType, swampType, exits, sourceCount, hasController, hasKeepers, mineralType !== false);
 	const terrain = gridToTerrain(grid);
 
@@ -1002,6 +1043,31 @@ export async function generateRoom(
 	return room;
 }
 
+const sectorNamePattern = /^([WE])(\d+)([NS])(\d+)$/;
+
+interface SectorOrigin {
+	ew: string;
+	ns: string;
+	xNum: number;
+	yNum: number;
+}
+
+function parseSectorOrigin(name: string): SectorOrigin {
+	const match = sectorNamePattern.exec(name);
+	if (!match) {
+		throw new Error(`Invalid sector name: ${name}`);
+	}
+	const [ , ew, xStr, ns, yStr ] = match;
+	const xNum = parseInt(xStr!, 10);
+	const yNum = parseInt(yStr!, 10);
+	if (xNum % 10 !== 0 || yNum % 10 !== 0) {
+		throw new Error(`Sector origin must be at a multiple of 10: ${name}`);
+	}
+	return { ew: ew!, ns: ns!, xNum, yNum };
+}
+
+export type GenerateSectorOptions = GenerateRoomOptions;
+
 // Per-type object loadouts applied over the caller's base options, so the requested type's loadout
 // wins. Highways are object-free open corridors; source-keeper rooms hold three guarded sources and
 // a guarded mineral with no controller; center rooms are the same but keeper-free; normal rooms keep
@@ -1012,3 +1078,53 @@ export const roomTypeTemplates: Record<RoomType, GenerateRoomOptions> = {
 	center: { controller: false, sources: 3, keeperLairs: false, extractor: true },
 	normal: {},
 };
+
+// Builds every not-yet-existing room of one sector into the shared accumulators — terrain into
+// `terrainMap`, names into `existing` so later rooms see them as neighbors — and returns the new
+// rooms. The range is the inclusive 11x11 block `xNum..xNum+10 × yNum..yNum+10` (origin e.g. 'W0N0'
+// → W0N0..W10N10), so the sector is bounded by its full highway ring on all four sides — the `…0`
+// rings on the origin corner plus the `…10` rings shared with the next sectors. Already-existing
+// rooms are skipped, so the shared rings are idempotent across adjacent sectors and partially-built
+// sectors can be re-entered. Each room is generated per its mod-10 role (see `roomTypeTemplates`).
+// No storage I/O; the caller flushes once. Returns an array (not a generator) because the terrain-map
+// and `existing` mutations must run eagerly before the caller serializes them.
+function accumulateSector(
+	origin: SectorOrigin,
+	options: GenerateRoomOptions | undefined,
+	terrainMap: WorldTerrain,
+	existing: Set<string>,
+): Room[] {
+	const { ew, ns, xNum, yNum } = origin;
+	const rooms: Room[] = [];
+	for (let dyy = 0; dyy <= 10; dyy++) {
+		for (let dxx = 0; dxx <= 10; dxx++) {
+			const roomName = `${ew}${xNum + dxx}${ns}${yNum + dyy}`;
+			if (existing.has(roomName)) continue;
+			const roomOptions = { ...options, ...roomTypeTemplates[roomType(roomName)] };
+			const { room, terrain } = buildRoom(roomName, roomOptions, neighborName => terrainMap.get(neighborName));
+			terrainMap.set(roomName, { exits: packExits(terrain), terrain });
+			existing.add(roomName);
+			rooms.push(room);
+		}
+	}
+	return rooms;
+}
+
+export async function generateSector(
+	shard: Shard,
+	sectorName: string,
+	options?: GenerateSectorOptions,
+): Promise<Room[]> {
+	const origin = parseSectorOrigin(sectorName);
+	const maxCoord = kMaxWorldSize >>> 1;
+	if (origin.xNum + 10 >= maxCoord || origin.yNum + 10 >= maxCoord) {
+		throw new Error(`Sector ${sectorName} extends past world bounds`);
+	}
+
+	await ensureWorldTerrain(shard);
+	const [ world, existingRooms ] = await Promise.all([ shard.loadWorld(), shard.data.sMembers('rooms') ]);
+	const terrainMap = new Map(world.terrain);
+	const rooms = accumulateSector(origin, options, terrainMap, new Set(existingRooms));
+	await flushRooms(shard, terrainMap, rooms);
+	return rooms;
+}

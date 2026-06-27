@@ -10,6 +10,7 @@ const commands = {
 	import: './dist/scripts/scrape-world.js',
 	manage: './dist/scripts/manage.js',
 	'generate-room': './dist/scripts/generate-room.js',
+	'generate-sector': './dist/scripts/generate-sector.js',
 	start: './dist/engine/service/launcher.js',
 	main: './dist/engine/service/main.js',
 	backend: './dist/backend/server.js',

@@ -2,4 +2,4 @@
 "xxscreeps": patch
 ---
 
-Add an offline `generate-room` command that procedurally generates a single room of any type.
+Add offline `generate-room` and `generate-sector` commands; sectors follow the vanilla mod-10 template.

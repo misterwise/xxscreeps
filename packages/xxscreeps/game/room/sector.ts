@@ -47,7 +47,36 @@ export function highwayOrientation(roomName: string): HighwayOrientation {
 	return vertical && horizontal ? 'crossing' : horizontal ? 'horizontal' : 'vertical';
 }
 
+// True when the coordinate's printed digit is 4, 5, or 6 — the 3-wide central band of a sector. The
+// digit is sign-agnostic (W4 and E4 both yield 4), matching vanilla's `isCenter`.
+function isCenterNineAxis(coord: number): boolean {
+	const digit = (coord < 0 ? -1 - coord : coord) % 10;
+	return digit >= 4 && digit <= 6;
+}
+
+// The 3x3 core of a sector: the center room plus the 8 source-keeper rooms surrounding it.
+function isCenterNineRoom(roomName: string): boolean {
+	const { rx, ry } = parseSignedRoomName(roomName);
+	return isCenterNineAxis(rx) && isCenterNineAxis(ry);
+}
+
 export type RoomType = 'highway' | 'sourceKeeper' | 'center' | 'normal';
+
+// Classifies a room by the vanilla mod-10 sector template: highways on the `%10===0` ring, the core
+// center at `%10===5` on both axes, the 8 source-keeper rooms filling out the 3x3 sector core, and
+// normal rooms everywhere else.
+export function roomType(roomName: string): RoomType {
+	if (isHighwayRoom(roomName)) {
+		return 'highway';
+	}
+	if (isCentralRoom(roomName)) {
+		return 'center';
+	}
+	if (isCenterNineRoom(roomName)) {
+		return 'sourceKeeper';
+	}
+	return 'normal';
+}
 
 // 11-room ring around a sector center: 4 corners + 9 rooms per side = 40 rooms total. Emission
 // order is load-bearing (deposit placement consumes it), so corners precede the interleaved sides.
