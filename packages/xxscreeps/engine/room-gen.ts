@@ -115,9 +115,9 @@ interface Cell {
 	mineral: boolean;
 }
 
-type Grid = Cell[][];
+export type Grid = Cell[][];
 
-function makeGrid(): Grid {
+export function makeGrid(): Grid {
 	const grid: Grid = [];
 	for (let yy = 0; yy < 50; yy++) {
 		const row: Cell[] = [];
@@ -170,7 +170,7 @@ function smoothTerrain(grid: Grid, factor: number, key: 'wall' | 'swamp'): Grid 
 	return next;
 }
 
-function checkFlood(grid: Grid): boolean {
+export function checkFlood(grid: Grid): boolean {
 	let startXx = -1;
 	let startYy = -1;
 
@@ -227,7 +227,7 @@ interface ExitInterval {
 	length: number;
 }
 
-function genExit(): number[] {
+export function genExit(): number[] {
 	const exitLength = Math.floor(Math.random() * 43) + 1;
 	const intervalsCnt = [ 0, 0, 1, 1, 2 ][Math.floor(Math.random() * 5)]!;
 	const exitStart = Math.floor(Math.random() * (46 - exitLength)) + 2;
@@ -265,7 +265,7 @@ function genExit(): number[] {
 	return exit;
 }
 
-function exitsArray(terrain: Terrain, axis: 'x' | 'y', fixed: number): number[] {
+export function exitsArray(terrain: Terrain, axis: 'x' | 'y', fixed: number): number[] {
 	const exits: number[] = [];
 	for (let ii = 0; ii < 50; ii++) {
 		const xx = axis === 'x' ? fixed : ii;
@@ -277,7 +277,7 @@ function exitsArray(terrain: Terrain, axis: 'x' | 'y', fixed: number): number[] 
 	return exits;
 }
 
-function hasPassableNeighbor(grid: Grid, xx: number, yy: number): boolean {
+export function hasPassableNeighbor(grid: Grid, xx: number, yy: number): boolean {
 	for (let dyy = -1; dyy <= 1; dyy++) {
 		for (let dxx = -1; dxx <= 1; dxx++) {
 			const nxx = xx + dxx;
@@ -526,7 +526,7 @@ function exitClearance(bx: number, by: number, exitPoints: readonly (readonly [ 
 // flows continuously across the shared sector edge of stacked highway rooms, the way real inter-sector
 // lanes do. A final pass carves a slot to any exit a mass or lane blob would otherwise seal off, then
 // swamp is applied as in normal rooms.
-function genHighwayTerrain(
+export function genHighwayTerrain(
 	exits: ExitMap,
 	rx: number,
 	ry: number,
@@ -628,7 +628,7 @@ function farthestSourceTile(grid: Grid, placed: [ number, number ][]): [ number,
 	return [ choice[0], choice[1] ];
 }
 
-function genTerrain(
+export function genTerrain(
 	wallType: number,
 	swampType: number,
 	exits: ExitMap,
@@ -770,7 +770,7 @@ function genTerrain(
 	return grid;
 }
 
-function gridToTerrain(grid: Grid): TerrainWriter {
+export function gridToTerrain(grid: Grid): TerrainWriter {
 	const terrain = new TerrainWriter();
 	for (let yy = 0; yy < 50; yy++) {
 		const row = grid[yy]!;
@@ -800,7 +800,7 @@ function gridToTerrain(grid: Grid): TerrainWriter {
 	return terrain;
 }
 
-function pickMineralPosition(grid: Grid) {
+export function pickMineralPosition(grid: Grid) {
 	let mxx: number;
 	let myy: number;
 	let isWall: boolean;
@@ -828,7 +828,7 @@ function pickMineralPosition(grid: Grid) {
 	return { xx: mxx, yy: myy };
 }
 
-function pickMineralDensity(): number {
+export function pickMineralDensity(): number {
 	const probabilities = C.MINERAL_DENSITY_PROBABILITY;
 	const random = Math.random();
 	for (let density = 1; density < probabilities.length; density++) {
@@ -1088,7 +1088,7 @@ export const roomTypeTemplates: Record<RoomType, GenerateRoomOptions> = {
 // sectors can be re-entered. Each room is generated per its mod-10 role (see `roomTypeTemplates`).
 // No storage I/O; the caller flushes once. Returns an array (not a generator) because the terrain-map
 // and `existing` mutations must run eagerly before the caller serializes them.
-function accumulateSector(
+export function accumulateSector(
 	origin: SectorOrigin,
 	options: GenerateRoomOptions | undefined,
 	terrainMap: WorldTerrain,
