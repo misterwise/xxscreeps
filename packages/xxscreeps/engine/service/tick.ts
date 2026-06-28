@@ -1,9 +1,12 @@
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
+import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import jsYaml from 'js-yaml';
 import { config, configPath } from 'xxscreeps/config/index.js';
 import { mustNotReject } from 'xxscreeps/utility/async.js';
 
+const configFileName = basename(fileURLToPath(configPath));
 let configTickSpeed = config.game.tickSpeed;
 export let tickSpeed = configTickSpeed;
 
@@ -13,7 +16,7 @@ export async function watch(onUpdate?: () => void) {
 		const handle = fs.watch(
 			new URL('.', configPath),
 			(message, fileName) => setTimeout(() => mustNotReject(async () => {
-				if (fileName !== null && fileName !== '.screepsrc.yaml') {
+				if (fileName !== null && fileName !== configFileName) {
 					return;
 				}
 				try {

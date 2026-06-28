@@ -5,7 +5,8 @@ import jsYaml from 'js-yaml';
 import { isTopThread } from 'xxscreeps/engine/service/index.js';
 
 // Load configuration
-export const configPath = new URL('.screepsrc.yaml', `${pathToFileURL(process.cwd())}/`);
+const configFile = process.env.SCREEPS_CONFIG ?? '.screepsrc.yaml';
+export const configPath = new URL(configFile, `${pathToFileURL(process.cwd())}/`);
 const content = await async function() {
 	try {
 		return await fs.readFile(configPath, 'utf8');
@@ -14,7 +15,7 @@ const content = await async function() {
 const config = function(): Config {
 	if (content === undefined) {
 		if (isTopThread) {
-			console.warn('`.screepsrc.yaml` not found; using default configuration');
+			console.warn(`\`${configFile}\` not found; using default configuration`);
 		}
 		return {};
 	} else {
