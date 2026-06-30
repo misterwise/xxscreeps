@@ -52,7 +52,7 @@ describe('room generation', () => {
 
 		test('genTerrain produces connected terrain with no walls on exits', () => {
 			const exits = { top: [ 10, 11, 12 ], right: [ 20, 21 ], bottom: [ 30, 31, 32 ], left: [ 15 ] };
-			const grid = genTerrain(1, 0, exits, 0, false, false);
+			const grid = genTerrain(exits, { wallType: 1, swampType: 0, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 			assert.ok(checkFlood(grid));
 
 			for (const xx of exits.top) {
@@ -72,7 +72,7 @@ describe('room generation', () => {
 		test('genTerrain produces terrain for all 28 wall types', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
 			for (let wallType = 1; wallType <= 28; wallType++) {
-				const grid = genTerrain(wallType, 0, exits, 0, false, false);
+				const grid = genTerrain(exits, { wallType, swampType: 0, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 				assert.ok(checkFlood(grid), `Wall type ${wallType} must produce connected terrain`);
 			}
 		});
@@ -80,14 +80,14 @@ describe('room generation', () => {
 		test('genTerrain with swamp types preserves connectivity', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
 			for (let swampType = 1; swampType <= 14; swampType++) {
-				const grid = genTerrain(5, swampType, exits, 0, false, false);
+				const grid = genTerrain(exits, { wallType: 5, swampType, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 				assert.ok(checkFlood(grid), `Swamp type ${swampType} must not break connectivity`);
 			}
 		});
 
 		test('gridToTerrain encodes walls correctly', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(1, 3, exits, 0, false, false);
+			const grid = genTerrain(exits, { wallType: 1, swampType: 3, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 			const terrain = gridToTerrain(grid);
 			for (let yy = 0; yy < 50; yy++) {
 				const row = grid[yy]!;
@@ -101,7 +101,7 @@ describe('room generation', () => {
 
 		test('empty exits produce walls on all borders', () => {
 			const exits = { top: [] as number[], right: [] as number[], bottom: [] as number[], left: [] as number[] };
-			const grid = genTerrain(1, 0, exits, 0, false, false);
+			const grid = genTerrain(exits, { wallType: 1, swampType: 0, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 			for (let ii = 0; ii < 50; ii++) {
 				assert.ok(grid[0]![ii]!.wall, `Top border (${ii},0) should be wall`);
 				assert.ok(grid[49]![ii]!.wall, `Bottom border (${ii},49) should be wall`);
@@ -112,7 +112,7 @@ describe('room generation', () => {
 
 		test('gridToTerrain only encodes swamps with non-wall neighbors', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 6, exits, 0, false, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 6, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 			const terrain = gridToTerrain(grid);
 
 			for (let yy = 0; yy < 50; yy++) {
@@ -150,7 +150,7 @@ describe('room generation', () => {
 
 		test('exitsArray extracts exit positions from a generated terrain', () => {
 			const exits = { top: [ 10, 11, 20 ], right: [ 15, 16, 30 ], bottom: [ 25 ], left: [ 5, 40 ] };
-			const grid = genTerrain(5, 0, exits, 0, false, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 0, controller: false, keeperLairs: false, mineral: false });
 			const terrain = gridToTerrain(grid);
 
 			const topExits = exitsArray(terrain, 'y', 0);
@@ -167,7 +167,7 @@ describe('room generation', () => {
 	describe('object placement', () => {
 		test('sources placed on wall tiles with passable neighbor', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 2, false, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 2, controller: false, keeperLairs: false, mineral: false });
 			let sourceCount = 0;
 			for (let yy = 0; yy < 50; yy++) {
 				const row = grid[yy]!;
@@ -193,7 +193,7 @@ describe('room generation', () => {
 				Math.max(Math.abs(one[0] - two[0]), Math.abs(one[1] - two[1]));
 			const mins: number[] = [];
 			for (let iteration = 0; iteration < 150; iteration++) {
-				const grid = genTerrain((iteration % 27) + 1, iteration % 14, exits, 3, false, false);
+				const grid = genTerrain(exits, { wallType: (iteration % 27) + 1, swampType: iteration % 14, sourceCount: 3, controller: false, keeperLairs: false, mineral: false });
 				const sources: [ number, number ][] = [];
 				for (let yy = 0; yy < 50; yy++) {
 					for (let xx = 0; xx < 50; xx++) {
@@ -217,7 +217,7 @@ describe('room generation', () => {
 
 		test('controller on wall tile, not overlapping source', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 2, true, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 2, controller: true, keeperLairs: false, mineral: false });
 			let controllerCount = 0;
 			for (let yy = 0; yy < 50; yy++) {
 				const row = grid[yy]!;
@@ -237,7 +237,7 @@ describe('room generation', () => {
 
 		test('keeper lairs placed near sources, on wall, not on border', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 2, false, true);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 2, controller: false, keeperLairs: true, mineral: false });
 			const sources: [ number, number ][] = [];
 			const lairs: [ number, number ][] = [];
 			for (let yy = 0; yy < 50; yy++) {
@@ -259,7 +259,7 @@ describe('room generation', () => {
 
 		test('source count of 1 honored', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 1, false, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 1, controller: false, keeperLairs: false, mineral: false });
 			let sourceCount = 0;
 			for (let yy = 0; yy < 50; yy++) {
 				const row = grid[yy]!;
@@ -274,7 +274,7 @@ describe('room generation', () => {
 	describe('mineral placement', () => {
 		test('pickMineralPosition returns wall tile with passable neighbor', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 2, true, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 2, controller: true, keeperLairs: false, mineral: false });
 			const { xx, yy } = pickMineralPosition(grid);
 			assert.ok(grid[yy]![xx]!.wall, `Mineral at (${xx},${yy}) should be on wall`);
 			assert.ok(hasPassableNeighbor(grid, xx, yy), `Mineral at (${xx},${yy}) must have passable neighbor`);
@@ -282,7 +282,7 @@ describe('room generation', () => {
 
 		test('pickMineralPosition stays at least 5 tiles from sources and controller', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 2, true, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 2, controller: true, keeperLairs: false, mineral: false });
 			for (let trial = 0; trial < 20; trial++) {
 				const { xx: mxx, yy: myy } = pickMineralPosition(grid);
 				for (let yy = 0; yy < 50; yy++) {
@@ -302,7 +302,7 @@ describe('room generation', () => {
 
 		test('pickMineralPosition stays within interior bounds (4-45)', () => {
 			const exits = { top: [ 25 ], right: [ 25 ], bottom: [ 25 ], left: [ 25 ] };
-			const grid = genTerrain(5, 0, exits, 1, true, false);
+			const grid = genTerrain(exits, { wallType: 5, swampType: 0, sourceCount: 1, controller: true, keeperLairs: false, mineral: false });
 			for (let trial = 0; trial < 20; trial++) {
 				const { xx, yy } = pickMineralPosition(grid);
 				assert.ok(xx >= 4 && xx <= 45, `Mineral x=${xx} must be in [4,45]`);
