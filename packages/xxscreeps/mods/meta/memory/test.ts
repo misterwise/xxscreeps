@@ -26,23 +26,39 @@ describe('mod/meta/memory', () => {
 		await tick(5);
 	}));
 
-	test('crunch', () => sim(async ({ sandbox, tick }) => {
+	test('non-json values read back coerced next tick', () => sim(async ({ sandbox, tick }) => {
 		await using player = await sandbox('200', global => {
 			switch (global.Game.time) {
-				case 1: {
-					const test = [ 1, undefined ];
-					// @ts-expect-error
-					global.test = test;
-					global.Memory.test = test;
+				case 1:
+					global.Memory.test = [ 1, undefined ];
+					global.Memory.fn = () => 42;
+					global.Memory.nan = NaN;
+					global.Memory.infinity = Infinity;
 					break;
-				}
 				case 2:
-					// @ts-expect-error
-					assert.equal(global.test, global.Memory.test);
 					assert.deepStrictEqual(global.Memory.test, [ 1, null ]);
+					assert.equal(global.Memory.fn, undefined);
+					assert.equal(global.Memory.nan, null);
+					assert.equal(global.Memory.infinity, null);
 			}
 		});
-		await tick(2);
+		await tick(3);
+	}));
+
+	test('skipped save does not leak mutations into next tick', () => sim(async ({ sandbox, tick }) => {
+		await using player = await sandbox('200', global => {
+			switch (global.Game.time) {
+				case 1: global.Memory.seed = 'baseline'; break;
+				case 2:
+					global.Memory.mutated = true;
+					delete global.RawMemory._parsed;
+					break;
+				case 3:
+					assert.equal(global.Memory.seed, 'baseline');
+					assert.equal(global.Memory.mutated, undefined);
+			}
+		});
+		await tick(4);
 	}));
 
 	test('invalid payload', () => sim(async ({ sandbox, tick }) => {

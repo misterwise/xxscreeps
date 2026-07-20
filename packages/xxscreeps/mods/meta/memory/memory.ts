@@ -27,7 +27,6 @@ let memory: Uint16Array;
 let memoryLength = 0;
 let string: string | undefined;
 let json: MemoryRecord | undefined;
-let previousJson: MemoryRecord | undefined;
 let isBufferOutOfDate = false;
 
 function align(address: number) {
@@ -120,7 +119,7 @@ export const RawMemory = {
 		} else if (value.length > kMaxMemoryLength) {
 			throw new Error('Raw memory length exceeded 2 MB limit');
 		}
-		previousJson = RawMemory._parsed = undefined;
+		RawMemory._parsed = undefined;
 		string = value;
 		isBufferOutOfDate = true;
 	},
@@ -218,8 +217,6 @@ export let get = getIsDefault;
 function getIsDefault(): MemoryRecord {
 	if (json) {
 		return json;
-	} else if (previousJson) {
-		return json = RawMemory._parsed = previousJson;
 	}
 
 	// https://github.com/screeps/engine/blob/1b9b1541923f061311474a2f1bac0fea37911f70/src/game/game.js#L479-L500
@@ -267,9 +264,9 @@ export function flush() {
 	if (_parsed) {
 		// Typical case: user accessed `Memory`, so we simulate vanilla reconstruction and save the
 		// string.
-		crunch(previousJson = _parsed as MemoryRecord);
+		crunch(_parsed);
 		try {
-			string = JSON.stringify(previousJson);
+			string = JSON.stringify(_parsed);
 			isBufferOutOfDate = true;
 		} catch (err) {
 			console.error(err);
@@ -308,7 +305,6 @@ export function flush() {
  */
 export function initialize(value: Readonly<Uint8Array> | null) {
 	json = undefined;
-	previousJson = undefined;
 	string = undefined;
 	if (value) {
 		memoryLength = value.length >>> 1;
