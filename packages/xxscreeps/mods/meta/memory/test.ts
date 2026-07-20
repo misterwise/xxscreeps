@@ -29,13 +29,19 @@ describe('mod/meta/memory', () => {
 	test('non-json values read back coerced next tick', () => sim(async ({ sandbox, tick }) => {
 		await using player = await sandbox('200', global => {
 			switch (global.Game.time) {
-				case 1:
-					global.Memory.test = [ 1, undefined ];
+				case 1: {
+					const test = [ 1, undefined ];
+					// @ts-expect-error
+					global.test = test;
+					global.Memory.test = test;
 					global.Memory.fn = () => 42;
 					global.Memory.nan = NaN;
 					global.Memory.infinity = Infinity;
 					break;
+				}
 				case 2:
+					// @ts-expect-error
+					assert.deepStrictEqual(global.test, [ 1, undefined ]);
 					assert.deepStrictEqual(global.Memory.test, [ 1, null ]);
 					assert.equal(global.Memory.fn, undefined);
 					assert.equal(global.Memory.nan, null);

@@ -35,35 +35,6 @@ function align(address: number) {
 }
 
 /**
- * Vanilla Screeps runs a flagrantly wasteful `JSON.parse` each tick on the player's memory. Besides
- * wasting CPU this also has the effect of turning `undefined` into `null`, removing `undefined`
- * object fields, and of course copying the entire object. This function aims to simulate some of
- * those effects without the cost of deserializing the whole memory payload.
-*/
-function crunch(payload: unknown) {
-	if (typeof payload === 'object') {
-		if (Array.isArray(payload)) {
-			for (const [ key, value ] of payload.entries()) {
-				if (value === undefined) {
-					payload[key] = null;
-				} else {
-					crunch(value);
-				}
-			}
-		} else if (payload !== null) {
-			for (const [ key, value ] of Object.entries(payload)) {
-				if (value === undefined) {
-					// @ts-expect-error
-					delete payload[key];
-				} else {
-					crunch(value);
-				}
-			}
-		}
-	}
-}
-
-/**
  * `RawMemory` object allows to implement your own memory stringifier instead of built-in serializer
  * based on `JSON.stringify`. It also allows to request up to 10 MB of additional memory using
  * asynchronous memory segments feature. You can also access memory segments of other players using
@@ -262,9 +233,7 @@ export function flush() {
 
 	// Handle spooky Memory behaviors
 	if (_parsed) {
-		// Typical case: user accessed `Memory`, so we simulate vanilla reconstruction and save the
-		// string.
-		crunch(_parsed);
+		// Typical case: user accessed `Memory`, so save the serialized string.
 		try {
 			string = JSON.stringify(_parsed);
 			isBufferOutOfDate = true;
