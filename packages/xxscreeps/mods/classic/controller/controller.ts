@@ -1,8 +1,7 @@
-import type { RoomObjectEffect } from 'xxscreeps/game/object.js';
 import type { Room } from 'xxscreeps/game/room/index.js';
 import { chainIntentChecks } from 'xxscreeps/game/checks.js';
 import { Game, hooks, intents, userInfo } from 'xxscreeps/game/index.js';
-import { optionalExpiryTime, untilTime } from 'xxscreeps/game/object.js';
+import { optionalExpiryTime, registerEffectsProvider, untilTime } from 'xxscreeps/game/object.js';
 import { OwnedStructure, checkMyStructure } from 'xxscreeps/mods/classic/structure/structure.js';
 import { withOverlay } from 'xxscreeps/schema/index.js';
 import * as C from 'xxscreeps:mods/constants';
@@ -112,16 +111,6 @@ export class StructureController extends withOverlay(OwnedStructure, controllerS
 	}
 
 	/**
-	 * Applied effects, an array of {@link RoomObjectEffect} objects.
-	 * @public
-	 * @see https://docs.screeps.com/api/#StructureController.effects
-	 */
-	@enumerable override get effects(): RoomObjectEffect[] | undefined {
-		const ticksRemaining = optionalExpiryTime(this['#upgradeInvulnerableUntil']);
-		return ticksRemaining === undefined ? undefined : [ { effect: C.EFFECT_INVULNERABILITY, ticksRemaining } ];
-	}
-
-	/**
 	 * The controller structure cannot be damaged or destroyed, so this is always undefined.
 	 * @public
 	 * @see https://docs.screeps.com/api/#StructureController.hits
@@ -200,6 +189,11 @@ export class StructureController extends withOverlay(OwnedStructure, controllerS
 		room.controller = this;
 	}
 }
+
+registerEffectsProvider(StructureController, controller => {
+	const ticksRemaining = optionalExpiryTime(controller['#upgradeInvulnerableUntil']);
+	return ticksRemaining === undefined ? undefined : [ { effect: C.EFFECT_INVULNERABILITY, ticksRemaining } ];
+});
 
 let lastActivateSafeModeId: string | undefined;
 hooks.register('gameInitializer', () => {

@@ -1,9 +1,9 @@
-import type { RoomObject, RoomObjectEffect } from 'xxscreeps/game/object.js';
+import type { RoomObject } from 'xxscreeps/game/object.js';
 import type { RoomPosition } from 'xxscreeps/game/position.js';
 import type { PartType } from 'xxscreeps/mods/classic/creep/creep.js';
 import { chainIntentChecks, checkSameRoom, checkTarget } from 'xxscreeps/game/checks.js';
 import { Game, intents, registerGlobal } from 'xxscreeps/game/index.js';
-import { createRoomObject, optionalExpiryTime, requiredExpiryTime } from 'xxscreeps/game/object.js';
+import { createRoomObject, registerEffectsProvider, requiredExpiryTime } from 'xxscreeps/game/object.js';
 import { StructureController } from 'xxscreeps/mods/classic/controller/controller.js';
 import { Creep } from 'xxscreeps/mods/classic/creep/creep.js';
 import { StructureTower } from 'xxscreeps/mods/classic/defense/tower.js';
@@ -30,16 +30,6 @@ import { invaderCoreShape } from './schema.js';
  * @see https://docs.screeps.com/api/#StructureInvaderCore
  */
 export class StructureInvaderCore extends withOverlay(OwnedStructure, invaderCoreShape) {
-	@enumerable override get effects(): RoomObjectEffect[] | undefined {
-		const { ticksToDeploy } = this;
-		const ticksToCollapse = optionalExpiryTime(this['#collapseTime']);
-		const effects = [
-			...ticksToDeploy === undefined ? [] : [ { effect: C.EFFECT_INVULNERABILITY, ticksRemaining: ticksToDeploy } ],
-			...ticksToCollapse === undefined ? [] : [ { effect: C.EFFECT_COLLAPSE_TIMER, ticksRemaining: ticksToCollapse } ],
-		];
-		return effects.length === 0 ? undefined : effects;
-	}
-
 	/**
 	 * Shows the timer for a not yet deployed stronghold, undefined otherwise.
 	 * @public
@@ -227,6 +217,12 @@ export function checkTransferEnergy(core: StructureInvaderCore, target: Structur
 			}
 		});
 }
+
+// The collapse timer rides the shared `Structure` provider; an undeployed core adds invulnerability.
+registerEffectsProvider(StructureInvaderCore, core => {
+	const { ticksToDeploy } = core;
+	return ticksToDeploy === undefined ? undefined : [ { effect: C.EFFECT_INVULNERABILITY, ticksRemaining: ticksToDeploy } ];
+});
 
 registerGlobal(StructureInvaderCore);
 declare module 'xxscreeps/game/runtime.js' {

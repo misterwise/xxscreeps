@@ -3,6 +3,7 @@ import type { RoomPosition } from './position.js';
 import type { Room } from './room/index.js';
 import type { InspectOptionsStylized } from 'node:util';
 import type { BufferView, TypeOf } from 'xxscreeps/schema/index.js';
+import type { Implementation } from 'xxscreeps/utility/types.js';
 import type { ActionLogSchema } from 'xxscreeps:mods/game';
 import * as Id from 'xxscreeps/engine/schema/id.js';
 import * as BufferObject from 'xxscreeps/schema/buffer-object.js';
@@ -24,6 +25,12 @@ export interface RoomObjectEffect {
 	 * @public
 	 */
 	effect?: number;
+
+	/**
+	 * Power ID of the applied effect. Absent if the effect is not a Power effect.
+	 * @public
+	 */
+	power?: number;
 
 	/**
 	 * Power level of the applied effect. Absent if the effect is not a Power effect.
@@ -114,6 +121,27 @@ export abstract class RoomObject extends withOverlay(BufferObject.BufferObject, 
 		}
 	}
 
+	/**
+	 * Applied effects, an array of {@link RoomObjectEffect} objects.
+	 * @public
+	 * @see https://docs.screeps.com/api/#RoomObject.effects
+	 */
+	@enumerable get effects(): RoomObjectEffect[] | undefined {
+		const effects: RoomObjectEffect[] = [];
+		for (
+			let host: EffectsHost | null = ObjectGetPrototypeOf(this) as EffectsHost | null;
+			host !== null;
+			host = ObjectGetPrototypeOf(host) as EffectsHost | null
+		) {
+			if (Object.hasOwn(host, Providers)) {
+				for (const provider of host[Providers]!) {
+					effects.push(...provider(this) ?? []);
+				}
+			}
+		}
+		return effects.length === 0 ? undefined : effects;
+	}
+
 	get '#extraUsers'(): string[] { return []; }
 	// eslint-disable-next-line @typescript-eslint/class-literal-property-style
 	get '#hasIntent'() { return false; }
@@ -167,16 +195,30 @@ export abstract class RoomObject extends withOverlay(BufferObject.BufferObject, 
 // Typing-only declarations on the base; runtime getters live on subclasses.
 export declare interface RoomObject {
 	get hits(): number | undefined;
-
-	/**
-	 * Applied effects, an array of {@link RoomObjectEffect} objects.
-	 * @public
-	 * @see https://docs.screeps.com/api/#RoomObject.effects
-	 */
-	get effects(): RoomObjectEffect[] | undefined;
 	get hitsMax(): number | undefined;
 	get my(): boolean | undefined;
 	set hits(hits: number);
+}
+
+const Providers = Symbol('effectsProviders');
+type EffectsProvider = (object: RoomObject) => RoomObjectEffect[] | undefined;
+interface EffectsHost { [Providers]?: EffectsProvider[] }
+
+/**
+ * Contributes entries to a class's `effects`. Every provider registered against an object's class
+ * and its bases is unioned, so mods applying effects to the same object don't displace each other.
+ * Providers run derived-class first, in registration order.
+ */
+export function registerEffectsProvider<Type extends RoomObject>(
+	object: Implementation<Type>,
+	provider: (object: Type) => RoomObjectEffect[] | undefined,
+) {
+	const host = object.prototype as EffectsHost;
+	if (Object.hasOwn(host, Providers)) {
+		host[Providers]!.push(provider as EffectsProvider);
+	} else {
+		host[Providers] = [ provider as EffectsProvider ];
+	}
 }
 
 export function createRoomObject<Type extends RoomObject>(instance: Type, pos: RoomPosition): Type {

@@ -1,8 +1,7 @@
 import { registerVariant } from 'xxscreeps/engine/schema/index.js';
-import { optionalExpiryTime } from 'xxscreeps/game/object.js';
+import { optionalExpiryTime, registerEffectsProvider } from 'xxscreeps/game/object.js';
 import { Structure } from 'xxscreeps/mods/classic/structure/structure.js';
 import { compose } from 'xxscreeps/schema/index.js';
-import { extend } from 'xxscreeps/utility/utility.js';
 import * as C from 'xxscreeps:mods/constants';
 import { StructureInvaderCore } from './invader-core.js';
 import { invaderCoreShape } from './schema.js';
@@ -12,14 +11,8 @@ export type StrongholdRoomSchema = typeof invaderCoreSchema;
 const invaderCoreSchema = registerVariant('Room.objects', compose(invaderCoreShape, StructureInvaderCore));
 
 // Deployed stronghold peers surface their shared collapse timer. This mod registers
-// `#collapseTime` on every structure, so it also owns the derived view; subclasses with their own
-// `effects` getters (the invader core, controllers) shadow it with their own state.
-extend(Structure, {
-	effects: {
-		enumerable: true,
-		get() {
-			const ticksRemaining = optionalExpiryTime(this['#collapseTime']);
-			return ticksRemaining === undefined ? undefined : [ { effect: C.EFFECT_COLLAPSE_TIMER, ticksRemaining } ];
-		},
-	},
+// `#collapseTime` on every structure, so it also owns the derived view.
+registerEffectsProvider(Structure, structure => {
+	const ticksRemaining = optionalExpiryTime(structure['#collapseTime']);
+	return ticksRemaining === undefined ? undefined : [ { effect: C.EFFECT_COLLAPSE_TIMER, ticksRemaining } ];
 });
