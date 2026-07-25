@@ -14,11 +14,12 @@ import { Tombstone } from 'xxscreeps/mods/classic/creep/tombstone.js';
 import { drop as dropResource } from 'xxscreeps/mods/classic/resource/processor/resource.js';
 import { OpenStore } from 'xxscreeps/mods/classic/resource/store.js';
 import { checkIsActive, checkMyStructure } from 'xxscreeps/mods/classic/structure/structure.js';
+import { StructureFactory } from 'xxscreeps/mods/modern/factory/factory.js';
 import { StructurePowerBank } from 'xxscreeps/mods/modern/powerbank/powerbank.js';
 import { StructurePowerSpawn } from 'xxscreeps/mods/modern/powerspawn/powerspawn.js';
 import * as C from 'xxscreeps:mods/constants';
 import * as Model from './model.js';
-import { PowerCreep, checkEnableRoom, checkRenew, checkUsePower, createSpawnedPowerCreep, powerInfoTable, powerOpsCost } from './powercreep.js';
+import { PowerCreep, checkEnableRoom, checkRenew, checkUsePower, createSpawnedPowerCreep, powerDuration, powerInfoTable, powerOpsCost } from './powercreep.js';
 
 function buryPowerCreep(creep: PowerCreep) {
 	const tombstone = createRoomObject(new Tombstone(), creep.pos);
@@ -131,6 +132,19 @@ const intents = [
 				if (overflow > 0) {
 					dropResource(creep.pos, C.RESOURCE_OPS, overflow);
 				}
+				break;
+			}
+			case C.PWR_OPERATE_FACTORY: {
+				if (!(target instanceof StructureFactory)) {
+					return;
+				}
+				// The first operator to reach a fresh factory fixes its level permanently.
+				if (target['#level'] === 0) {
+					target['#level'] = entry.level;
+				} else if (target['#level'] !== entry.level) {
+					return;
+				}
+				target['#operateUntil'] = Game.time + powerDuration(info, entry.level) - 1;
 				break;
 			}
 			default:

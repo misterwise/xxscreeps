@@ -1,6 +1,8 @@
 import { registerVariant } from 'xxscreeps/engine/schema/index.js';
 import { hooks, registerGlobal } from 'xxscreeps/game/index.js';
+import { registerEffectsProvider, untilTime } from 'xxscreeps/game/object.js';
 import { registerFindHandlers, registerLook } from 'xxscreeps/game/room/index.js';
+import { StructureFactory } from 'xxscreeps/mods/modern/factory/factory.js';
 import { compose } from 'xxscreeps/schema/index.js';
 import * as C from 'xxscreeps:mods/constants';
 import { PowerCreep, read } from './powercreep.js';
@@ -61,6 +63,18 @@ const find = registerFindHandlers({
 export type PowerCreepLook = [ typeof look ];
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const look = registerLook<PowerCreep>()(C.LOOK_POWER_CREEPS);
+
+// The factory stores the window; the power id and level that fill out the effect are this mod's,
+// so it also owns the derived view.
+registerEffectsProvider(StructureFactory, factory => {
+	const ticksRemaining = untilTime(factory['#operateUntil']);
+	return ticksRemaining === undefined ? undefined : [ {
+		effect: C.PWR_OPERATE_FACTORY,
+		power: C.PWR_OPERATE_FACTORY,
+		level: factory['#level'],
+		ticksRemaining,
+	} ];
+});
 
 registerGlobal(PowerCreep);
 declare module 'xxscreeps/game/runtime.js' {

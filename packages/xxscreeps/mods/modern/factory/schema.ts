@@ -25,6 +25,9 @@ export const factoryShape = declare('StructureFactory', struct(ownedStructureSha
 	'#actionLog': actionLogFormat,
 	'#cooldownTime': 'int32',
 	'#level': 'int32',
+
+	/** Tick this factory stays operated until, gating its leveled recipes. */
+	'#operateUntil': 'int32',
 }));
 
 // Register commodity resource types into `ResourceType` enum and `RESOURCES_ALL`

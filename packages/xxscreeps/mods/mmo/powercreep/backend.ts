@@ -3,6 +3,7 @@ import type { Database } from 'xxscreeps/engine/db/index.js';
 import { bindMapRenderer, bindRenderer, hooks, makeValidatedPayloadRoute } from 'xxscreeps/backend/index.js';
 import { renderActionLog } from 'xxscreeps/backend/sockets/render.js';
 import { renderStore } from 'xxscreeps/mods/classic/resource/backend.js';
+import { StructureFactory } from 'xxscreeps/mods/modern/factory/factory.js';
 import * as C from 'xxscreeps:mods/constants';
 import * as Model from './model.js';
 import { PowerCreep } from './powercreep.js';
@@ -35,6 +36,22 @@ bindRenderer(PowerCreep, (creep, next, previousTime) => {
 		powers: Object.fromEntries(creep['#powers'].map(({ cooldownTime, level, power }) =>
 			[ power, { cooldownTime, level } ] as const)),
 		user: creep['#user'],
+	};
+});
+
+// Layered over the factory mod's own renderer, which knows the window but not the power filling it.
+bindRenderer(StructureFactory, (factory, next) => {
+	const endTime = factory['#operateUntil'];
+	return {
+		...next(),
+		...endTime > 0 && {
+			effects: [ {
+				effect: C.PWR_OPERATE_FACTORY,
+				power: C.PWR_OPERATE_FACTORY,
+				level: factory['#level'],
+				endTime,
+			} ],
+		},
 	};
 });
 
