@@ -104,9 +104,13 @@ export async function upsertNotification(
 ) {
 	const intervalMs = groupInterval * 60_000;
 	const now = Date.now();
-	const timeGroup =
-		intervalMs === Infinity ? 0 :
-		intervalMs > 0 ? Math.ceil(now / intervalMs) * intervalMs : now;
+	const timeGroup = function() {
+		if (intervalMs === Infinity) {
+			return 0;
+		} else {
+			return intervalMs > 0 ? Math.ceil(now / intervalMs) * intervalMs : now;
+		}
+	}();
 	await recordNotification(shard, userId, type, message, timeGroup, now);
 }
 
