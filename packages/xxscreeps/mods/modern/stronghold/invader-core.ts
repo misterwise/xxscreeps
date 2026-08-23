@@ -136,7 +136,8 @@ export class StructureInvaderCore extends withOverlay(OwnedStructure, invaderCor
 			}
 			// `createRuin` runs inside the destructor below and copies the dying structure's store into
 			// the ruin, so the loot reaches the player riding a store the core never otherwise carries.
-			(this as never as Record<'store', OpenStore>).store = store;
+			// @ts-expect-error
+			this.store = store;
 		}
 		if (!super['#destroy'](type)) {
 			return false;
