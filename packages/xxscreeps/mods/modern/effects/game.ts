@@ -28,15 +28,13 @@ declare module 'xxscreeps/game/object.js' {
 RoomObject.prototype['#effects'] = function*() {};
 
 extend(RoomObject, {
-	effects: {
+	effects: cached(RoomObject.prototype, 'effects', {
 		enumerable: true,
-		get() {
+		get(this: RoomObject) {
 			const effects = [ ...this['#effects']() ];
-			const value = effects.length > 0 ? effects : undefined;
-			Object.defineProperty(this, 'effects', { value });
-			return value;
+			return effects.length > 0 ? effects : undefined;
 		},
-	},
+	}),
 });
 
 // `#upgradeInvulnerableUntil` belongs to the controller mod, but the effect id and the derived view
