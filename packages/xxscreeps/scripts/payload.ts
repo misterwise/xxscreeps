@@ -4,7 +4,6 @@ import type { RoomObject } from 'xxscreeps/game/object.js';
 import type { Terrain } from 'xxscreeps/game/terrain.js';
 import { compositeComparator, mappedNumericComparator } from 'xxscreeps/functional/comparator.js';
 import { Fn } from 'xxscreeps/functional/fn.js';
-import { nonNullPredicate } from 'xxscreeps/functional/predicate.js';
 import * as C from 'xxscreeps/game/constants/index.js';
 import * as MapSchema from 'xxscreeps/game/map.js';
 import { RoomPosition } from 'xxscreeps/game/position.js';
@@ -49,12 +48,13 @@ const codecs = function() {
 }();
 
 // Objects no codec claims -- creeps, roads, anything a payload doesn't carry -- yield undefined and
-// leave their tile's terrain showing.
+// leave their tile's terrain showing. A codec's null is an object it carries in a companion's
+// entry: it earns no marker of its own, but the payload does bring it back.
 function encodeObject(object: RoomObject) {
 	return Fn.find(Fn.map(codecs.values(), codec => {
 		const fields = codec.encode(object);
-		return fields === undefined ? undefined : { marker: codec.marker, meta: { id: object.id, ...fields } };
-	}), nonNullPredicate);
+		return fields == null ? fields : { marker: codec.marker, meta: { id: object.id, ...fields } };
+	}), encoded => encoded !== undefined);
 }
 
 async function exportRoom(shard: Shard, roomName: string, terrain: Terrain): Promise<PayloadRoom> {
@@ -63,7 +63,7 @@ async function exportRoom(shard: Shard, roomName: string, terrain: Terrain): Pro
 		room['#objects'],
 		$$ => Fn.map($$, object => {
 			const encoded = encodeObject(object);
-			return encoded === undefined ? undefined : [ `${object.pos.x},${object.pos.y}`, encoded ] as const;
+			return encoded == null ? undefined : [ `${object.pos.x},${object.pos.y}`, encoded ] as const;
 		}),
 		$$ => Fn.filter($$),
 		$$ => new Map($$));
