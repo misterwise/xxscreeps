@@ -19,8 +19,8 @@ export const infoKey = (userId: string) => `user/${userId}`;
 
 export const emailProvider = 'email';
 
-// The processor sizes its worker pool by subtracting these from the `users` set, so every world
-// needs all three.
+// Every world needs these; the processor discounts them when sizing its worker pool from the
+// `users` set.
 export const npcUsers = {
 	1: 'Screeps',
 	2: 'Invader',

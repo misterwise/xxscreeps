@@ -328,7 +328,8 @@ describe('scripts/payload', () => {
 		const { rooms } = importPayload(payload);
 		const countOf = function(predicate: (object: RoomObject) => boolean) {
 			return Fn.pipe(
-				Fn.transform(rooms, room => room['#objects']),
+				rooms,
+				$$ => Fn.transform($$, room => room['#objects']),
 				$$ => Fn.filter($$, predicate),
 				$$ => Fn.accumulate($$, () => 1),
 			);

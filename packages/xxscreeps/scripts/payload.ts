@@ -160,8 +160,9 @@ export function importPayload(payload: Payload): PayloadWorld {
 }
 
 /**
- * Writes a parsed world into a shard at tick zero. Both room buffers are filled, so the shard reads
- * correctly before the engine's first tick has processed anything.
+ * Writes a parsed world into a shard at tick zero. Both room buffers are filled because a caller
+ * may skip the processor's room-initialization stage, which is what fills the second one in a
+ * running server.
  */
 export async function seedShard(shard: Shard, { rooms, terrain }: PayloadWorld) {
 	shard.time = 0;

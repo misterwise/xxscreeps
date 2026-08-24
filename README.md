@@ -120,8 +120,19 @@ schema](src/config/config.ts).
 
 ### Adding bots
 
-`import` seeds an unowned world. To add a *named* bot — and optionally place its first spawn — use
-the `manage` subcommand:
+`import` seeds an unowned world. Populate it with the `manage` subcommand, which uses the example bot
+the vanilla private server ships when you don't name a directory. These four commands rebuild the
+lineup that server starts with, in the corner rooms it uses:
+
+```
+npx xxscreeps manage bot add AliceBot   --spawn W1N9 36,5
+npx xxscreeps manage bot add EmmaBot    --spawn W1N1 37,31
+npx xxscreeps manage bot add JackBot    --spawn W9N1 33,6
+npx xxscreeps manage bot add MichaelBot --spawn W9N9 17,40
+```
+
+Drop the coordinates to have a spawn placed at random, or pass a directory to run your own bot
+instead:
 
 ```
 npx xxscreeps manage bot add <name> <dir> --spawn <room>
